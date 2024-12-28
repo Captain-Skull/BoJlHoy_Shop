@@ -200,19 +200,22 @@ const cancelMenu = {
   },
 };
 
+const getPhoto = (img) => {
+  const imagePath = path.join(__dirname, 'imgs', img);
+  const imageBuffer = fs.readFileSync(imagePath)
+
+  return imageBuffer;
+}
+
 bot.onText(/\/start(?: (.+))?/, (msg, match) => {
   const chatId = msg.chat.id;
   const referrerId = match[1];  // Получаем реферальный ID, если он есть
   const menu = isAdmin(chatId) ? adminMenu : mainMenu;
-  const imagePath = path.join(__dirname, 'imgs', 'bolnoy.jpg');
-  const imageBuffer = fs.readFileSync(imagePath)
 
   if (userBalances[chatId] || userBalances[chatId] === 0) {
-    bot.sendPhoto(chatId, imageBuffer, {
+    bot.sendPhoto(chatId, getPhoto('bolnoy.jpg'), {
       caption: 'Вы уже зарегистрированы. Что вы хотите сделать?',
       ...menu
-    }).catch((err) => {
-      console.error('Error with photo: ', err)
     })
   } else {
     if (referrerId && referrerId !== chatId.toString() && (userBalances[referrerId] || userBalances[referrerId] === 0)) {
@@ -352,7 +355,7 @@ bot.on('message', (msg) => {
     }
 
     // Отправляем сообщение с реквизитами для перевода
-    bot.sendPhoto(chatId, './imgs/send_receipt.jpg', {
+    bot.sendPhoto(chatId, getPhoto('send_receipt.jpg'), {
       caption: `Отправьте деньги на следующие реквизиты:
 
 ${paymentDetails}
@@ -640,7 +643,7 @@ ${paymentDetails}
       keyboard.push(row);
     }
 
-    bot.sendPhoto(chatId, './imgs/choose_pack.jpg', {
+    bot.sendPhoto(chatId, getPhoto('choose_pack.jpg'), {
       caption: '🛒 Выберите пак UC:',
       reply_markup: {
         inline_keyboard: keyboard
@@ -959,7 +962,7 @@ bot.on('callback_query', (query) => {
     return;
   } else if (data === 'deposit') {
     // Бот запрашивает сумму для пополнения
-    bot.sendPhoto(chatId, './imgs/send_amount.jpg', {
+    bot.sendPhoto(chatId, getPhoto('send_amount.jpg'), {
       caption: 'Введите сумму для пополнения',
       ...cancelMenu
     })
