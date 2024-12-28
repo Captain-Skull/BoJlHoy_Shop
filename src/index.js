@@ -203,8 +203,8 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
   const chatId = msg.chat.id;
   const referrerId = match[1];  // Получаем реферальный ID, если он есть
   const menu = isAdmin(chatId) ? adminMenu : mainMenu;
-
-  const imageBuffer = fs.readFileSync('./imgs/bolnoy.jpg')
+  const imagePath = path.join(__dirname, 'imgs', 'bolnoy.jpg');
+  const imageBuffer = fs.readFileSync(imagePath)
 
   if (userBalances[chatId] || userBalances[chatId] === 0) {
     bot.sendPhoto(chatId, imageBuffer, {
