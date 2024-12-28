@@ -1,5 +1,6 @@
 const express = require('express');
 const app = express();
+const fs = require('fs');
 
 app.use(express.json());
 
@@ -203,8 +204,10 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
   const referrerId = match[1];  // Получаем реферальный ID, если он есть
   const menu = isAdmin(chatId) ? adminMenu : mainMenu;
 
+  const imageBuffer = fs.readFileSync('./imgs/bolnoy.jpg')
+
   if (userBalances[chatId] || userBalances[chatId] === 0) {
-    bot.sendPhoto(chatId, './imgs/bolnoy.jpg', {
+    bot.sendPhoto(chatId, imageBuffer, {
       caption: 'Вы уже зарегистрированы. Что вы хотите сделать?',
       ...menu
     }).catch((err) => {
@@ -240,7 +243,7 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
     }
   
     // Отправляем только одно приветственное сообщение
-    bot.sendPhoto(chatId, './imgs/bolnoy.jpg', {
+    bot.sendPhoto(chatId, imageBuffer, {
       caption: 'Добро пожаловать!. Что вы хотите сделать?',
       ...menu
     }).catch((error) => {
