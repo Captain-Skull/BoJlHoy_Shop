@@ -81,7 +81,10 @@ function forwardMessageToAllAdmins(chatId, messageId) {
 }
 
 database.ref('paymentDetails').once('value').then((snapshot) => {
-  paymentDetails = snapshot.val() || "123456";
+  paymentDetails = snapshot.val() || `ТИНЬКОФФ
+Получатель: ВАДИМ
+Карта: 2200701726843458
+СБП: +79397118869`;
 });
 
 database.ref('leaveFeedbackText').once('value').then((snapshot) => {
@@ -360,13 +363,14 @@ bot.on('message', (msg) => {
 
     // Отправляем сообщение с реквизитами для перевода
     bot.sendPhoto(chatId, getPhoto('send_receipt.jpg'), {
-      caption: `Отправьте деньги на следующие реквизиты:
+      caption: `Совершите перевод на указанную вами сумму ⤵️
 
 ${paymentDetails}
 
 Сумма: ${amount}
 
-Отправьте чек`,
+В ОТВЕТНОМ СООБЩЕНИИ ПРИШЛИТЕ ЧЕК ТРАНЗАКЦИИ
+ЛЮБЛЮ ЧАЕВЫЕ 🥰`,
       ...cancelMenu
     })
 
