@@ -241,6 +241,8 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
     bot.sendPhoto(chatId, './imgs/bolnoy.png', {
       caption: 'Добро пожаловать!. Что вы хотите сделать?',
       ...menu
+    }).catch((error) => {
+      console.error('error sending photo: ', error)
     })
   }
 });
