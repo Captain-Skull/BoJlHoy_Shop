@@ -356,14 +356,16 @@ bot.on('message', (msg) => {
   } else if (awaitingDeposit[chatId]) {
     const amount = parseFloat(text); // Преобразуем введенное значение в число
 
-    if (isNaN(amount) || amount <= 0) {
-      bot.sendMessage(chatId, 'Пожалуйста, введите корректную сумму для пополнения.');
+    if (isNaN(amount) || amount <= 100) {
+      bot.sendMessage(chatId, 'Минимальная сумма пополнения 100₽');
       return;
     }
 
     // Отправляем сообщение с реквизитами для перевода
     bot.sendPhoto(chatId, getPhoto('send_receipt.jpg'), {
       caption: `Совершите перевод на указанную вами сумму ⤵️
+
+Минимальная сумма 100₽
 
 ${paymentDetails}
 
