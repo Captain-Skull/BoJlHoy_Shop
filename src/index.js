@@ -204,7 +204,10 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
   const menu = isAdmin(chatId) ? adminMenu : mainMenu;
 
   if (userBalances[chatId] || userBalances[chatId] === 0) {
-    bot.sendMessage(chatId, 'Вы уже зарегистрированы. Что вы хотите сделать?', menu)
+    bot.sendPhoto(chatId, './imgs/bolnoy.png', {
+      caption: 'Вы уже зарегистрированы. Что вы хотите сделать?',
+      ...menu
+    })
   } else {
     if (referrerId && referrerId !== chatId.toString() && (userBalances[referrerId] || userBalances[referrerId] === 0)) {
       // Сохраняем реферала в базе данных
@@ -235,7 +238,10 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
     }
   
     // Отправляем только одно приветственное сообщение
-    bot.sendMessage(chatId, 'Добро пожаловать! Что вы хотите сделать?', menu);
+    bot.sendPhoto(chatId, './imgs/bolnoy.png', {
+      caption: 'Добро пожаловать!. Что вы хотите сделать?',
+      ...menu
+    })
   }
 });
 
@@ -338,13 +344,16 @@ bot.on('message', (msg) => {
     }
 
     // Отправляем сообщение с реквизитами для перевода
-    bot.sendMessage(chatId, `Отправьте деньги на следующие реквизиты:
+    bot.sendPhoto(chatId, './imgs/send_receipt.jpg', {
+      caption: `Отправьте деньги на следующие реквизиты:
 
 ${paymentDetails}
 
 Сумма: ${amount}
 
-В ОТВЕТНОМ СООБЩЕНИИ ПРИШЛИТЕ ЧЕК ТРАНЗАКЦИИ:`, cancelMenu);
+Отправьте чек`,
+      ...cancelMenu
+    })
 
     awaitingDeposit[chatId] = false;
     awaitingReceipt[chatId] = {
@@ -622,11 +631,13 @@ ${paymentDetails}
       }));
       keyboard.push(row);
     }
-    bot.sendMessage(chatId, '🛒 Выберите товар:', {
+
+    bot.sendPhoto(chatId, './imgs/choose_pack.jpg', {
+      caption: '🛒 Выберите пак UC:',
       reply_markup: {
-        inline_keyboard: keyboard,
-      },
-    });
+        inline_keyboard: keyboard
+      }
+    })
     
     return;
   } else if (text === 'Реферальная система 🔗') {
@@ -940,7 +951,10 @@ bot.on('callback_query', (query) => {
     return;
   } else if (data === 'deposit') {
     // Бот запрашивает сумму для пополнения
-    bot.sendMessage(chatId, 'Введите сумму, на которую вы хотите пополнить баланс:', cancelMenu);
+    bot.sendPhoto(chatId, './imgs/send_amount.jpg', {
+      caption: 'Введите сумму для пополнения',
+      ...cancelMenu
+    })
     awaitingDeposit[chatId] = true;  // Ожидание суммы для пополнения
 
     return;
