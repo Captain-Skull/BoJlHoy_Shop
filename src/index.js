@@ -207,6 +207,8 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
     bot.sendPhoto(chatId, './imgs/bolnoy.png', {
       caption: 'Вы уже зарегистрированы. Что вы хотите сделать?',
       ...menu
+    }).catch((err) => {
+      console.error('Error with photo: ', err)
     })
   } else {
     if (referrerId && referrerId !== chatId.toString() && (userBalances[referrerId] || userBalances[referrerId] === 0)) {
