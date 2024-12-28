@@ -85,7 +85,7 @@ database.ref('paymentDetails').once('value').then((snapshot) => {
 });
 
 database.ref('leaveFeedbackText').once('value').then((snapshot) => {
-  leaveFeedbackText = snapshot.val() || 'Ваш заказ был выполнен! Спасибо за покупку. Пожалуйста, напишите отзыв в группе и помогите улучшить качество работы.'
+  leaveFeedbackText = snapshot.val() || 'Ваш заказ был выполнен! Спасибо за покупку. Пожалуйста, напишите отзыв в группе и помогите улучшить качество работы. https://t.me/Bolnojot'
 });
 
 // Загрузка товаров
@@ -95,14 +95,18 @@ database.ref('products').once('value').then((snapshot) => {
   products = snapshot.val() || [  { label: '60', price: 88 },
     { label: '120', price: 176 },
     { label: '180', price: 264 },
-    { label: '325', price: 445 },
-    { label: '385', price: 520 },
-    { label: '660', price: 870 },
-    { label: '720', price: 910 },
-    { label: '1800', price: 2150 },
-    { label: '1920', price: 2300 },
-    { label: '3850', price: 4100 },
-    { label: '8100', price: 8200 },];
+    { label: '240', price: 352 },
+    { label: '325', price: 470 },
+    { label: '360', price: 525 },
+    { label: '385', price: 558 },
+    { label: '660', price: 960 },
+    { label: '1320', price: 1900 },
+    { label: '1800', price: 2600 },
+    { label: '1920', price: 2700 },
+    { label: '3850', price: 5000 },
+    { label: '8100', price: 9000 },
+    { label: '16200', price: 17800 },
+  ];
 });
 
 // Загрузка балансов пользователей
