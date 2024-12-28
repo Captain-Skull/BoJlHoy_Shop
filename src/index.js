@@ -356,7 +356,7 @@ bot.on('message', (msg) => {
   } else if (awaitingDeposit[chatId]) {
     const amount = parseFloat(text); // Преобразуем введенное значение в число
 
-    if (isNaN(amount) || amount <= 100) {
+    if (isNaN(amount) || amount < 100) {
       bot.sendMessage(chatId, 'Минимальная сумма пополнения 100₽');
       return;
     }
