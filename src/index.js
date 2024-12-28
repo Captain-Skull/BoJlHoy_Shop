@@ -204,7 +204,7 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
   const menu = isAdmin(chatId) ? adminMenu : mainMenu;
 
   if (userBalances[chatId] || userBalances[chatId] === 0) {
-    bot.sendPhoto(chatId, './imgs/bolnoy.png', {
+    bot.sendPhoto(chatId, './imgs/bolnoy.jpg', {
       caption: 'Вы уже зарегистрированы. Что вы хотите сделать?',
       ...menu
     }).catch((err) => {
@@ -240,7 +240,7 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
     }
   
     // Отправляем только одно приветственное сообщение
-    bot.sendPhoto(chatId, './imgs/bolnoy.png', {
+    bot.sendPhoto(chatId, './imgs/bolnoy.jpg', {
       caption: 'Добро пожаловать!. Что вы хотите сделать?',
       ...menu
     }).catch((error) => {
