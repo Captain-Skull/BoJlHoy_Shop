@@ -661,7 +661,7 @@ ${paymentDetails}
     
     return;
   } else if (text === 'Реферальная система 🔗') {
-    const referralLink = `https://t.me/BoJlHoyUc_Shop?start=${chatId}`;
+    const referralLink = `https://t.me/BoJlHoyUc_bot?start=${chatId}`;
 
     bot.sendMessage(chatId, `Ваша реферальная ссылка: ${referralLink}. Количество ваших рефералов: ${referralCounts[chatId] || 0}. Пригласите друзей и получайте бонусы за их покупки! С каждого пополнения вашего друга вы получите ${bonusRate * 100}% на ваш баланс`);
     
