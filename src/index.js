@@ -333,6 +333,7 @@ bot.on('message', (msg) => {
       sendMessageToAllAdmins(`Пользователь ${userTag} (ID: ${chatId}) ввел PUBG ID: ${pubgId} для товара ${label}UC на сумму ${itemPrice}₽. Средства списаны с баланса.`, [
         [{ text: 'Заказ выполнен', callback_data: `order_completed_${chatId}` }],
       ])
+      forwardMessageToAllAdmins(chatId, msg.message_id);
 
       customersOrders[chatId] = true;
 
