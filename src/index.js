@@ -254,7 +254,7 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
     }
   
     // Отправляем только одно приветственное сообщение
-    bot.sendPhoto(chatId, imageBuffer, {
+    bot.sendPhoto(chatId, getPhoto('bolnoy.jpg'), {
       caption: 'Добро пожаловать!. Что вы хотите сделать?',
       ...menu
     }).catch((error) => {
