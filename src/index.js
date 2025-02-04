@@ -647,7 +647,7 @@ ${paymentDetails}
     for (let i = 0; i < products.length; i += 2) {
       const row = products.slice(i, i + 2).map(item => ({
         text: `${item.label} UC - ${item.price}₽`,
-        callback_data: `buy_${item.label}_${item.price}`,
+        callback_data: `buy_${item.label}`,
       }));
       keyboard.push(row);
     }
@@ -884,8 +884,17 @@ bot.on('callback_query', (query) => {
     
     return;
   } else if (data.startsWith('buy_')) {
-    const [_, label, price] = data.split('_');; // Получаем метку товара (например, 60)
-    const numericPrice = Number(price);
+    const [_, label] = data.split('_');; // Получаем метку товара (например, 60)
+    const product = products.find(p => p.label === label);
+        
+    if (!product) {
+        bot.sendMessage(chatId, '⚠️ Товар временно недоступен.');
+        return;
+    }
+    
+    const actualPrice = product.price;
+        
+    const numericPrice = Number(actualPrice);
     
     // Запросить у пользователя его ID в PUBG
     bot.sendMessage(chatId, `Вы выбрали товар: ${label}UC за ${numericPrice}₽. Пожалуйста, введите ваш ID в PUBG:`, cancelMenu);
