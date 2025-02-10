@@ -136,7 +136,6 @@ let awaitingDeposit = {};  // Ожидание суммы для пополне�
 let awaitingReceipt = {};  // Ожидание чека
 let awaitingPubgId = {};   // Ожидание ввода PUBG ID от пользователя
 let pendingChecks = {};    // Храним информацию о пользователях, чьи чеки ожидают подтверждения
-let customersOrders = {};
 let awaitingToChangeProduct = {};
 let awaitingNewProductLabel = {};
 let awaitingNewProductPrice = {};
@@ -334,8 +333,6 @@ bot.on('message', (msg) => {
         [{ text: 'Заказ выполнен', callback_data: `order_completed_${chatId}` }],
       ])
       forwardMessageToAllAdmins(chatId, msg.message_id);
-
-      customersOrders[chatId] = true;
 
       bot.sendMessage(chatId, `Спасибо! Ваш PUBG ID: ${pubgId} был отправлен администратору. С вашего баланса списано ${itemPrice}₽. Ожидайте обработки заказа.`, menu);
     } else {
@@ -912,18 +909,16 @@ bot.on('callback_query', (query) => {
       return
     }
 
-    if (customersOrders[userId]) {
-        // Сообщаем администратору о выполнении заказа
-        sendMessageToAllAdmins(`Заказ для пользователя с ID ${userId} был выполнен.`);
-    
-        // Сообщаем покупателю, что его заказ выполнен
-        bot.sendMessage(userId, leaveFeedbackText);
-    
-        bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
-          chat_id: message.chat.id,
-          message_id: message.message_id,
-        });
-    }
+      // Сообщаем администратору о выполнении заказа
+      sendMessageToAllAdmins(`Заказ для пользователя с ID ${userId} был выполнен.`);
+  
+      // Сообщаем покупателю, что его заказ выполнен
+      bot.sendMessage(userId, leaveFeedbackText);
+  
+      bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
+        chat_id: message.chat.id,
+        message_id: message.message_id,
+      });
 
     return;
   } else if (data.startsWith('edit_product_')) {
