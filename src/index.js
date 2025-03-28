@@ -136,7 +136,6 @@ let awaitingDeposit = {};  // Ожидание суммы для пополне�
 let awaitingReceipt = {};  // Ожидание чека
 let awaitingPubgId = {};   // Ожидание ввода PUBG ID от пользователя
 let pendingChecks = {};    // Храним информацию о пользователях, чьи чеки ожидают подтверждения
-let customersOrders = {};
 let awaitingToChangeProduct = {};
 let awaitingNewProductLabel = {};
 let awaitingNewProductPrice = {};
@@ -336,8 +335,6 @@ bot.on('message', (msg) => {
         [{ text: 'Заказ выполнен', callback_data: `order_completed_${chatId}` }],
       ])
       forwardMessageToAllAdmins(chatId, msg.message_id);
-
-      customersOrders[chatId] = true;
 
       bot.sendMessage(chatId, `Спасибо! Ваш PUBG ID: ${pubgId} был отправлен администратору. С вашего баланса списано ${itemPrice}₽. Ожидайте обработки заказа.`, menu);
     } else {
@@ -649,7 +646,7 @@ ${paymentDetails}
     for (let i = 0; i < products.length; i += 2) {
       const row = products.slice(i, i + 2).map(item => ({
         text: `${item.label} UC - ${item.price}₽`,
-        callback_data: `buy_${item.label}_${item.price}`,
+        callback_data: `buy_${item.label}`,
       }));
       keyboard.push(row);
     }
@@ -886,8 +883,17 @@ bot.on('callback_query', (query) => {
     
     return;
   } else if (data.startsWith('buy_')) {
-    const [_, label, price] = data.split('_');; // Получаем метку товара (например, 60)
-    const numericPrice = Number(price);
+    const [_, label] = data.split('_');; // Получаем метку товара (например, 60)
+    const product = products.find(p => p.label === label);
+        
+    if (!product) {
+        bot.sendMessage(chatId, '⚠️ Товар временно недоступен.');
+        return;
+    }
+    
+    const actualPrice = product.price;
+        
+    const numericPrice = Number(actualPrice);
     
     // Запросить у пользователя его ID в PUBG
     bot.sendMessage(chatId, `Вы выбрали товар: ${label}UC за ${numericPrice}₽. Пожалуйста, введите ваш ID в PUBG:`, cancelMenu);
@@ -905,18 +911,16 @@ bot.on('callback_query', (query) => {
       return
     }
 
-    if (customersOrders[userId]) {
-        // Сообщаем администратору о выполнении заказа
-        sendMessageToAllAdmins(`Заказ для пользователя с ID ${userId} был выполнен.`);
-    
-        // Сообщаем покупателю, что его заказ выполнен
-        bot.sendMessage(userId, leaveFeedbackText);
-    
-        bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
-          chat_id: message.chat.id,
-          message_id: message.message_id,
-        });
-    }
+      // Сообщаем администратору о выполнении заказа
+      sendMessageToAllAdmins(`Заказ для пользователя с ID ${userId} был выполнен.`);
+  
+      // Сообщаем покупателю, что его заказ выполнен
+      bot.sendMessage(userId, leaveFeedbackText);
+  
+      bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
+        chat_id: message.chat.id,
+        message_id: message.message_id,
+      });
 
     return;
   } else if (data.startsWith('edit_product_')) {
