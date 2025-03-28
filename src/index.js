@@ -282,12 +282,14 @@ bot.on('message', (msg) => {
   const menu = isAdmin(chatId) ? adminMenu : mainMenu;
   
   if (isAdmin(chatId) && replyToMessage) {
-    const userId = replyToMessage.forward_from.id;
-
-    // Пересылаем ответ админу пользователю
-    bot.sendMessage(userId, `Ответ от администратора: ${msg.text}`).then(() => {
-      sendMessageToAllAdmins(`Ответ от ${userTag} пользователю с ID ${userId} был отправлен.`)
-    });
+    if (replyToMessage.forward_from) {
+      const userId = replyToMessage.forward_from.id;
+  
+      // Пересылаем ответ админу пользователю
+      bot.sendMessage(userId, `Ответ от администратора: ${msg.text}`).then(() => {
+        sendMessageToAllAdmins(`Ответ от ${userTag} пользователю с ID ${userId} был отправлен.`)
+      });
+    }
   }
 
   // Обработка отмены
