@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const app = express();
 const fs = require('fs');
@@ -5,14 +6,14 @@ const path = require('path');
 
 app.use(express.json());
 
-const port = process.env.PORT || 3000;
+// const port = process.env.PORT || 3000;
 
 const TelegramApi = require('node-telegram-bot-api');
 const admin = require('firebase-admin');
 require('firebase/database');
-const serviceAccount = require('/etc/secrets/serviceAccountKey.json');
-const token = process.env.token;
-const bot = new TelegramApi(token);
+const serviceAccount = require('../secrets/serviceAccountKey.json');
+const token = process.env.BOT_TOKEN;
+const bot = new TelegramApi(token, {polling: true});
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNrUKNo2HU9D-ZWo9Dm5qpusUrCPvwAvA",
@@ -30,14 +31,14 @@ admin.initializeApp(firebaseConfig);
 // Получаем доступ к Realtime Database
 const database = admin.database();
 
-const URL = 'https://bojlhoy-shop.onrender.com';
+// const URL = 'https://bojlhoy-shop.onrender.com';
 
-bot.setWebHook(`${URL}/bot${token}`);
+// bot.setWebHook(`${URL}/bot${token}`);
 
-app.post(`/bot${token}`, (req, res) => {
-  bot.processUpdate(req.body);
-  res.sendStatus(200); // Отправляем успешный ответ для Telegram
-});
+// app.post(`/bot${token}`, (req, res) => {
+//   bot.processUpdate(req.body);
+//   res.sendStatus(200); // Отправляем успешный ответ для Telegram
+// });
 
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID; // ID группы для отправки сообщений администраторам
 
@@ -988,6 +989,6 @@ bot.on('callback_query', (query) => {
 });
 
 // Запуск бота
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+// app.listen(port, () => {
+//   console.log(`Server is running on port ${port}`);
+// });
