@@ -46,8 +46,8 @@ function isAdmin(chatId) {
   return false;
 }
 
-function sendMessageToAllAdmins(message, inlineKeyboard = null) {
-  Object.keys(admins).forEach(adminId => {
+async function sendMessageToAllAdmins(message, inlineKeyboard = null) {
+  Object.keys(admins).forEach(async adminId => {
     const options = {};
 
     if (inlineKeyboard) {
@@ -56,13 +56,13 @@ function sendMessageToAllAdmins(message, inlineKeyboard = null) {
       };
     }
 
-    bot.sendMessage(adminId, message, options)
+    await bot.sendMessage(adminId, message, options)
   });
 }
 
 function forwardMessageToAllAdmins(chatId, messageId) {
-  Object.keys(admins).forEach(adminId => {
-    bot.forwardMessage(adminId, chatId, messageId)
+  Object.keys(admins).forEach(async adminId => {
+    await bot.forwardMessage(adminId, chatId, messageId)
   });
 }
 
@@ -151,7 +151,11 @@ database.ref('pendingChecks').once('value').then((snapshot) => {
   pendingChecks = snapshot.val() || {}
 })
 
-bot.setMyCommands();
+const commands = [
+  { command: 'start', description: 'Главное меню' }
+]
+
+bot.setMyCommands(commands);
 
 const mainMenu = {
   reply_markup: {
@@ -235,19 +239,19 @@ const updateProducts = async (type, newProducts) => {
   await database.ref(`products${capitalizeFirstLetter(type)}`).set(newProducts);
 }
 
-bot.onText(/\/start(?: (.+))?/, (msg, match) => {
+bot.onText(/\/start(?: (.+))?/, async (msg, match) => {
   const chatId = msg.chat.id;
   const referrerId = match[1];
   const menu = isAdmin(chatId) ? adminMenu : mainMenu;
 
   if (userBalances[chatId] || userBalances[chatId] === 0) {
-    bot.sendPhoto(chatId, IMAGES.welcome, {
+    await bot.sendPhoto(chatId, IMAGES.welcome, {
       caption: 'Вы уже зарегистрированы. Что вы хотите сделать?',
       ...menu
     })
   } else {
     if (referrerId && referrerId !== chatId.toString() && (userBalances[referrerId] || userBalances[referrerId] === 0)) {
-      database.ref(`referrals/${chatId}`).set({
+      await database.ref(`referrals/${chatId}`).set({
         referrerId: referrerId
       });
 
@@ -257,21 +261,21 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
         referralCounts[referrerId] = 1;
       }
     
-      database.ref('referralCounts').set(referralCounts)
+      await database.ref('referralCounts').set(referralCounts)
 
-      bot.sendMessage(referrerId, `У вас новый реферал! ID: ${chatId}. Количество ваших рефералов: ${referralCounts[referrerId]}`);
+      await bot.sendMessage(referrerId, `У вас новый реферал! ID: ${chatId}. Количество ваших рефералов: ${referralCounts[referrerId]}`);
     }
   
     if (!userBalances[chatId]) {
       userBalances[chatId] = 0;
   
-      database.ref(`userBalances/${chatId}`).set(userBalances[chatId])
+      await database.ref(`userBalances/${chatId}`).set(userBalances[chatId])
         .catch((error) => {
           console.error(`Error adding user to database: ${error}`);
         });
     }
   
-    bot.sendPhoto(chatId, IMAGES.welcome, {
+    await bot.sendPhoto(chatId, IMAGES.welcome, {
       caption: 'Добро пожаловать!. Что вы хотите сделать?',
       ...menu
     }).catch((error) => {
@@ -285,7 +289,7 @@ const getUserTag = (msg) => {
   return username;
 };
 
-bot.on('message', (msg) => {
+bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
   const userTag = getUserTag(msg);
@@ -298,7 +302,7 @@ bot.on('message', (msg) => {
     if (replyToMessage.forward_from) {
       const userId = replyToMessage.forward_from.id;
   
-      bot.sendMessage(userId, `Ответ от администратора: ${msg.text}`).then(() => {
+      await bot.sendMessage(userId, `Ответ от администратора: ${msg.text}`).then(() => {
         sendMessageToAllAdmins(`Ответ от ${userTag} пользователю с ID ${userId} был отправлен.`)
       });
     }
@@ -322,7 +326,7 @@ bot.on('message', (msg) => {
     awaitingToCreateMailing[chatId] = false;
     awaitingToAddAdmin[chatId] = false;
     awaitingToRemoveAdmin[chatId] = false;
-    bot.sendMessage(chatId, 'Действие отменено. Вы вернулись в главное меню.', menu);
+    await bot.sendMessage(chatId, 'Действие отменено. Вы вернулись в главное меню.', menu);
     return;
   }
 
@@ -336,18 +340,18 @@ bot.on('message', (msg) => {
     if (userBalances[chatId] >= itemPrice) {
       userBalances[chatId] -= itemPrice;
 
-      database.ref('userBalances').set(userBalances);
+      await database.ref('userBalances').set(userBalances);
 
       sendMessageToAllAdmins(`Пользователь ${userTag} (ID: ${chatId}) ввел PUBG ID: ${pubgId} для товара ${label} (${type}) на сумму ${itemPrice}₽. Средства списаны с баланса.`, [
         [{ text: 'Заказ выполнен', callback_data: `order_completed_${chatId}` }],
       ])
       forwardMessageToAllAdmins(chatId, msg.message_id);
 
-      bot.sendMessage(chatId, `Спасибо! Ваш PUBG ID: ${pubgId} был отправлен администратору. С вашего баланса списано ${itemPrice}₽. Ожидайте обработки заказа.`, menu);
+      await bot.sendMessage(chatId, `Спасибо! Ваш PUBG ID: ${pubgId} был отправлен администратору. С вашего баланса списано ${itemPrice}₽. Ожидайте обработки заказа.`, menu);
     } else {
       const missingAmount = itemPrice - userBalances[chatId];
-      bot.sendMessage(chatId, `Недостаточно средств на балансе для покупки этого товара. Вам не хватает ${missingAmount}₽.`);
-      bot.sendMessage(chatId, 'Пожалуйста, пополните баланс, чтобы продолжить покупку.', {
+      await bot.sendMessage(chatId, `Недостаточно средств на балансе для покупки этого товара. Вам не хватает ${missingAmount}₽.`);
+      await bot.sendMessage(chatId, 'Пожалуйста, пополните баланс, чтобы продолжить покупку.', {
         reply_markup: {
           inline_keyboard: [
             [{ text: 'Пополнить баланс', callback_data: 'deposit' }],
@@ -363,11 +367,11 @@ bot.on('message', (msg) => {
     const amount = parseFloat(text);
 
     if (isNaN(amount) || amount < 100) {
-      bot.sendMessage(chatId, 'Минимальная сумма пополнения 100₽');
+      await bot.sendMessage(chatId, 'Минимальная сумма пополнения 100₽');
       return;
     }
 
-    bot.sendPhoto(chatId, IMAGES.receipt, {
+    await bot.sendPhoto(chatId, IMAGES.receipt, {
       caption: `Совершите перевод на указанную вами сумму ⤵️
 
 ${paymentDetails}
@@ -396,7 +400,7 @@ ${paymentDetails}
     }
 
     database.ref('pendingChecks').set(pendingChecks);
-    bot.sendMessage(chatId, 'Чек получен и отправлен администратору на проверку. Ожидайте подтверждения.', menu);
+    await bot.sendMessage(chatId, 'Чек получен и отправлен администратору на проверку. Ожидайте подтверждения.', menu);
     
     const userInfo = pendingChecks[chatId];
     sendMessageToAllAdmins(`${userTag} (ID: ${chatId}) отправил чек для пополнения на сумму ${userInfo.amount}₽. Пожалуйста, проверьте.`, [
@@ -414,18 +418,18 @@ ${paymentDetails}
 
     const newPrice = parseFloat(msg.text);
     if (isNaN(newPrice)) {
-        bot.sendMessage(chatId, 'Пожалуйста, введите корректную цену.');
+        await bot.sendMessage(chatId, 'Пожалуйста, введите корректную цену.');
         return;
     }
 
     product.price = newPrice;
 
     updateProducts(type, currentProducts)
-    .then(() => {
-        bot.sendMessage(chatId, `Цена товара ${product.label} была изменена на ${newPrice}$.`, menu);
+    .then(async () => {
+        await bot.sendMessage(chatId, `Цена товара ${product.label} была изменена на ${newPrice}$.`, menu);
     })
-    .catch((error) => {
-        bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.');
+    .catch(async (error) => {
+        await bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.');
         console.error(error);
     });
     awaitingToChangeProduct[chatId] = false
@@ -434,7 +438,7 @@ ${paymentDetails}
   } else if (awaitingNewProductLabel[chatId]) {
     const type = awaitingNewProductLabel[chatId].type;
     const newLabel = msg.text;
-    bot.sendMessage(chatId, `Введите цену для нового товара (${newLabel}): `, cancelMenu);
+    await bot.sendMessage(chatId, `Введите цену для нового товара (${newLabel}): `, cancelMenu);
 
     awaitingNewProductLabel[chatId] = false;
     awaitingNewProductPrice[chatId] = {type, newLabel};
@@ -445,7 +449,7 @@ ${paymentDetails}
     const newLabel = awaitingNewProductPrice[chatId].newLabel
     const newPrice = parseFloat(msg.text);
     if (isNaN(newPrice)) {
-      bot.sendMessage(chatId, 'Пожалуйста, введите корректную цену');
+      await bot.sendMessage(chatId, 'Пожалуйста, введите корректную цену');
       return;
     }
 
@@ -458,11 +462,11 @@ ${paymentDetails}
     });
 
     updateProducts(type, currentProducts)
-    .then(() => {
-        bot.sendMessage(chatId, `Новый товар ${newLabel} был добавлен по цене ${newPrice}`, menu);
+    .then(async () => {
+        await bot.sendMessage(chatId, `Новый товар ${newLabel} был добавлен по цене ${newPrice}`, menu);
     })
-    .catch((error) => {
-        bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.', menu);
+    .catch(async (error) => {
+        await bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.', menu);
         console.error(error);
     });
 
@@ -472,11 +476,11 @@ ${paymentDetails}
   } else if (awaitingToChangeCredentials[chatId]) {
     paymentDetails = msg.text;
       database.ref('paymentDetails').set(paymentDetails)
-        .then(() => {
-          bot.sendMessage(chatId, `Реквизиты были успешно изменены на: ${paymentDetails}`, menu);
+        .then(async () => {
+          await bot.sendMessage(chatId, `Реквизиты были успешно изменены на: ${paymentDetails}`, menu);
         })
-        .catch((error) => {
-          bot.sendMessage(chatId, 'Ошибка сохранения реквизитов в Firebase.', menu);
+        .catch(async (error) => {
+          await bot.sendMessage(chatId, 'Ошибка сохранения реквизитов в Firebase.', menu);
           console.error(error);
     });
 
@@ -486,11 +490,11 @@ ${paymentDetails}
   } else if (awaitingToChangeFeedbackText[chatId]) {
     leaveFeedbackText = msg.text;
     database.ref('leaveFeedbackText').set(leaveFeedbackText)
-      .then(() => {
-        bot.sendMessage(chatId, 'Прощальный текст был успешно изменен.')
+      .then(async () => {
+        await bot.sendMessage(chatId, 'Прощальный текст был успешно изменен.')
       })
-      .catch((error) => {
-        bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.', menu);
+      .catch(async (error) => {
+        await bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.', menu);
         console.log(error);
       })
 
@@ -500,18 +504,18 @@ ${paymentDetails}
     const newBonusRate = parseFloat(msg.text) / 100;
 
     if (isNaN(newBonusRate)) {
-      bot.sendMessage(chatId, 'Пожалуйста, введите корректный процент.');
+      await bot.sendMessage(chatId, 'Пожалуйста, введите корректный процент.');
       return;
     }
 
     bonusRate = newBonusRate;
     const bonusRatePercentage = (bonusRate * 100).toFixed(1);
     database.ref('bonusRate').set(bonusRate)
-      .then(() => {
-        bot.sendMessage(chatId, `Реферальный бонус был изменен ${bonusRatePercentage}%`, menu)
+      .then(async () => {
+        await bot.sendMessage(chatId, `Реферальный бонус был изменен ${bonusRatePercentage}%`, menu)
       })
-      .catch((error) => {
-        bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.', menu);
+      .catch(async (error) => {
+        await bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.', menu);
         console.error(error);
       });
     
@@ -521,7 +525,7 @@ ${paymentDetails}
   } else if (awaitingUserToChangeBalance[chatId]) {
     const userId = msg.text;
     
-    bot.sendMessage(chatId, `Баланс пользователя ${userBalances[userId]}. Введите новую сумму для баланса:`);
+    await bot.sendMessage(chatId, `Баланс пользователя ${userBalances[userId]}. Введите новую сумму для баланса:`);
 
     awaitingToChangeBalance[chatId] = {userId}
     awaitingUserToChangeBalance[chatId] = false
@@ -532,22 +536,22 @@ ${paymentDetails}
     const userId = awaitingToChangeBalance[chatId].userId
 
     if (isNaN(newBalance)) {
-      bot.sendMessage(chatId, 'Пожалуйста, введите корректную сумму.');
+      await bot.sendMessage(chatId, 'Пожалуйста, введите корректную сумму.');
       return;
     }
 
     if (userBalances[userId] || userBalances[userId] === 0) {
       userBalances[userId] = newBalance;
       database.ref('userBalances').set(userBalances)
-        .then(() => {
-          bot.sendMessage(chatId, `Баланс пользователя с ID ${userId} был изменен на ${newBalance}₽.`, menu);
+        .then(async () => {
+          await bot.sendMessage(chatId, `Баланс пользователя с ID ${userId} был изменен на ${newBalance}₽.`, menu);
         })
-        .catch((error) => {
-          bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.', menu);
+        .catch(async (error) => {
+          await bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.', menu);
           console.error(error);
         });
     } else {
-      bot.sendMessage(chatId, 'Пользователя с таким id нет.', menu)
+      await bot.sendMessage(chatId, 'Пользователя с таким id нет.', menu)
     }
 
     awaitingToChangeBalance[chatId] = false
@@ -557,12 +561,12 @@ ${paymentDetails}
       const broadcastMessage = msg.text;
       
       if (!broadcastMessage) {
-        return bot.sendMessage(chatId, 'Сообщение не может быть пустым.');
+        return await bot.sendMessage(chatId, 'Сообщение не может быть пустым.');
       }
 
       const sendBroadcastMessage = async () => {
         if (!userBalances) {
-          return bot.sendMessage(chatId, 'Нет пользователей для рассылки.');
+          return await bot.sendMessage(chatId, 'Нет пользователей для рассылки.');
         }
 
         const userIds = Object.keys(userBalances);
@@ -580,7 +584,7 @@ ${paymentDetails}
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        bot.sendMessage(chatId, `Сообщение успешно отправлено ${userIds.length} пользователям.`, menu);
+        await bot.sendMessage(chatId, `Сообщение успешно отправлено ${userIds.length} пользователям.`, menu);
       };
 
       sendBroadcastMessage();
@@ -590,21 +594,21 @@ ${paymentDetails}
   } else if (awaitingToAddAdmin[chatId]) {
     const newAdminId = msg.text;
     if (!userBalances.hasOwnProperty(newAdminId)) {
-      bot.sendMessage(chatId, `Пользователь с ID "${newAdminId}" не существует. Пожалуйста, проверьте введенный ID и попробуйте еще раз. Возможно пользователь не зарегистрирован в боте`);
+      await bot.sendMessage(chatId, `Пользователь с ID "${newAdminId}" не существует. Пожалуйста, проверьте введенный ID и попробуйте еще раз. Возможно пользователь не зарегистрирован в боте`);
       return;
     }
     if (!admins[newAdminId]) {
       admins[newAdminId] = true;
       database.ref('admins').set(admins)
-        .then(() => {
-          bot.sendMessage(chatId, `Пользователь с ID ${newAdminId} добавлен как администратор.`, menu);
-          bot.sendMessage(newAdminId, 'Вы были добавлены в качестве администратора.');
+        .then(async () => {
+          await bot.sendMessage(chatId, `Пользователь с ID ${newAdminId} добавлен как администратор.`, menu);
+          await bot.sendMessage(newAdminId, 'Вы были добавлены в качестве администратора.');
         })
-        .catch((error) => {
-          bot.sendMessage(chatId, `Произошла ошибка: ${error.message}`);
+        .catch(async (error) => {
+          await bot.sendMessage(chatId, `Произошла ошибка: ${error.message}`);
         });
     } else {
-      bot.sendMessage(chatId, `Пользователь с ID ${newAdminId} уже является администратором.`, menu);
+      await bot.sendMessage(chatId, `Пользователь с ID ${newAdminId} уже является администратором.`, menu);
     }
 
     awaitingToAddAdmin[chatId] = false;
@@ -615,20 +619,20 @@ ${paymentDetails}
 
     if (admins[adminIdToRemove]) {
       if (adminIdToRemove === ADMIN_CHAT_ID) {
-        bot.sendMessage(chatId, 'Нельзя удалить главного администратора', menu);
+        await bot.sendMessage(chatId, 'Нельзя удалить главного администратора', menu);
       } else {
         delete admins[adminIdToRemove];
         database.ref('admins').set(admins)
-            .then(() => {
-                bot.sendMessage(chatId, `Пользователь с ID ${adminIdToRemove} был удален из списка администраторов.`, menu);
-                bot.sendMessage(adminIdToRemove, 'Вы были удалены из списка администраторов.');
+            .then(async () => {
+                await bot.sendMessage(chatId, `Пользователь с ID ${adminIdToRemove} был удален из списка администраторов.`, menu);
+                await bot.sendMessage(adminIdToRemove, 'Вы были удалены из списка администраторов.');
             })
-            .catch((error) => {
-                bot.sendMessage(chatId, `Произошла ошибка: ${error.message}`);
+            .catch(async (error) => {
+                await bot.sendMessage(chatId, `Произошла ошибка: ${error.message}`);
             });
       }
     } else {
-        bot.sendMessage(chatId, `Пользователь с ID ${adminIdToRemove} не является администратором.`, menu);
+        await bot.sendMessage(chatId, `Пользователь с ID ${adminIdToRemove} не является администратором.`, menu);
     }
 
     awaitingToRemoveAdmin[chatId] = false;
@@ -648,7 +652,7 @@ ${paymentDetails}
     
     return;
   } else if (text === 'Каталог 💰') {
-    bot.sendPhoto(chatId, IMAGES.welcome, {
+    await bot.sendPhoto(chatId, IMAGES.welcome, {
       caption: '🛒 Выберите категорию товаров: ',
       reply_markup: {
         inline_keyboard: [
@@ -661,27 +665,27 @@ ${paymentDetails}
   } else if (text === 'Реферальная система 🔗') {
     const referralLink = `https://t.me/BoJlHoyUc_bot?start=${chatId}`;
 
-    bot.sendMessage(chatId, `Ваша реферальная ссылка: ${referralLink}. Количество ваших рефералов: ${referralCounts[chatId] || 0}. Пригласите друзей и получайте бонусы за их покупки! С каждого пополнения вашего друга вы получите ${bonusRate * 100}% на ваш баланс`);
+    await bot.sendMessage(chatId, `Ваша реферальная ссылка: ${referralLink}. Количество ваших рефералов: ${referralCounts[chatId] || 0}. Пригласите друзей и получайте бонусы за их покупки! С каждого пополнения вашего друга вы получите ${bonusRate * 100}% на ваш баланс`);
     
     return;
   } else if (text === 'Меню администратора ⚙️') {
     if (!isAdmin(chatId)) {
       return; 
     }
-    bot.sendMessage(chatId, 'Выберите действие:', adminActionsMenu);
+    await bot.sendMessage(chatId, 'Выберите действие:', adminActionsMenu);
     
     return;
   } else if (text === 'Назад ↩️') {
     if (!isAdmin(chatId)) {
       return; 
     }
-    bot.sendMessage(chatId, 'Вы вернулись в главное меню:', adminMenu);
+    await bot.sendMessage(chatId, 'Вы вернулись в главное меню:', adminMenu);
     
     return;
   } else if (text === 'Управление товарами 🛠️') {
     if (!isAdmin(chatId)) return;
 
-    bot.sendPhoto(chatId, IMAGES.welcome, {
+    await bot.sendPhoto(chatId, IMAGES.welcome, {
       caption: 'Выберите категорию товаров для изменения:',
       reply_markup: {
         inline_keyboard: [
@@ -696,7 +700,7 @@ ${paymentDetails}
       return; 
     }
   
-    bot.sendMessage(chatId, 'Введите новые реквизиты для пополнения:', cancelMenu);
+    await bot.sendMessage(chatId, 'Введите новые реквизиты для пополнения:', cancelMenu);
 
     awaitingToChangeCredentials[chatId] = true;
     
@@ -706,7 +710,7 @@ ${paymentDetails}
       return; 
     }
   
-    bot.sendMessage(chatId, 'Введите новый прощальный текст:', cancelMenu);
+    await bot.sendMessage(chatId, 'Введите новый прощальный текст:', cancelMenu);
 
     awaitingToChangeFeedbackText[chatId] = true;
     
@@ -716,7 +720,7 @@ ${paymentDetails}
       return; 
     }
 
-    bot.sendMessage(chatId, 'Введите новый бонус для рефералов в процентах:', cancelMenu)
+    await bot.sendMessage(chatId, 'Введите новый бонус для рефералов в процентах:', cancelMenu)
 
     awaitingBonusRate[chatId] = true;
     
@@ -726,7 +730,7 @@ ${paymentDetails}
       return; 
     }
   
-    bot.sendMessage(chatId, 'Введите ID пользователя, чей баланс вы хотите изменить:', cancelMenu);
+    await bot.sendMessage(chatId, 'Введите ID пользователя, чей баланс вы хотите изменить:', cancelMenu);
 
     awaitingUserToChangeBalance[chatId] = true;
     
@@ -736,7 +740,7 @@ ${paymentDetails}
       return; 
     }
   
-    bot.sendMessage(chatId, 'Отправьте текст сообщения, которое хотите разослать всем пользователям:', cancelMenu);
+    await bot.sendMessage(chatId, 'Отправьте текст сообщения, которое хотите разослать всем пользователям:', cancelMenu);
     
     awaitingToCreateMailing[chatId] = true;
     
@@ -746,7 +750,7 @@ ${paymentDetails}
       return; 
     }
 
-    bot.sendMessage(chatId, 'Введить Id пользователя, которого хотите сделать администратором: ', cancelMenu)
+    await bot.sendMessage(chatId, 'Введить Id пользователя, которого хотите сделать администратором: ', cancelMenu)
     
     awaitingToAddAdmin[chatId] = true;
     
@@ -756,7 +760,7 @@ ${paymentDetails}
       return; 
     }
 
-    bot.sendMessage(chatId, 'Введите ID администратора, которого хотите удалить: ', cancelMenu);
+    await bot.sendMessage(chatId, 'Введите ID администратора, которого хотите удалить: ', cancelMenu);
     
     awaitingToRemoveAdmin[chatId] = true;
     
@@ -764,7 +768,7 @@ ${paymentDetails}
   }
 });
 
-bot.on('callback_query', (query) => {
+bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const data = query.data;
   const messageId = query.message.message_id;
@@ -788,26 +792,26 @@ bot.on('callback_query', (query) => {
   
         userBalances[userId] = (userBalances[userId] || 0) + depositAmount;
   
-        database.ref('userBalances').set(userBalances);
+        await database.ref('userBalances').set(userBalances);
   
-        database.ref(`referrals/${userId}`).once('value', (snapshot) => {
+        await database.ref(`referrals/${userId}`).once('value', async (snapshot) => {
           if (snapshot.exists()) {
             const referralData = snapshot.val();
             const referrerId = referralData[Object.keys(referralData)[0]];
             const bonus = parseFloat((depositAmount * bonusRate).toFixed(3));
   
             userBalances[referrerId] = (userBalances[referrerId] || 0) + bonus;
-            database.ref('userBalances').set(userBalances);
+            await database.ref('userBalances').set(userBalances);
   
-            bot.sendMessage(referrerId, `Ваш реферал пополнил баланс на ${depositAmount}₽. Вам начислено ${bonus}₽ в качестве бонуса.`);
+            await bot.sendMessage(referrerId, `Ваш реферал пополнил баланс на ${depositAmount}₽. Вам начислено ${bonus}₽ в качестве бонуса.`);
           }
         });
   
-        sendMessageToAllAdmins(`Пополнение на ${depositAmount}₽ для ${userInfo.userTag} (ID: ${userId}) подтверждено.`);
-        bot.sendMessage(userId, `Ваш баланс был пополнен на ${depositAmount}₽. Текущий баланс: ${userBalances[userId]}₽.`);
+        await sendMessageToAllAdmins(`Пополнение на ${depositAmount}₽ для ${userInfo.userTag} (ID: ${userId}) подтверждено.`);
+        await bot.sendMessage(userId, `Ваш баланс был пополнен на ${depositAmount}₽. Текущий баланс: ${userBalances[userId]}₽.`);
   
         delete pendingChecks[userId];
-        database.ref('pendingChecks').set(pendingChecks);
+        await database.ref('pendingChecks').set(pendingChecks);
       }
       
       return;
@@ -820,11 +824,11 @@ bot.on('callback_query', (query) => {
       }
   
       if (userInfo) {
-        sendMessageToAllAdmins(`Пополнение на ${userInfo.amount}₽ для ${userInfo.userTag} (ID: ${userId}) отменено.`);
-        bot.sendMessage(userId, `Ваше пополнение на сумму ${userInfo.amount}₽ было отклонено. Пожалуйста, попробуйте снова.`);
+        await sendMessageToAllAdmins(`Пополнение на ${userInfo.amount}₽ для ${userInfo.userTag} (ID: ${userId}) отменено.`);
+        await bot.sendMessage(userId, `Ваше пополнение на сумму ${userInfo.amount}₽ было отклонено. Пожалуйста, попробуйте снова.`);
   
         delete pendingChecks[userId];
-        database.ref('pendingChecks').set(pendingChecks);
+        await database.ref('pendingChecks').set(pendingChecks);
       }
       
       return;
@@ -834,7 +838,7 @@ bot.on('callback_query', (query) => {
       const currentProducts = getCurrentProducts(type);
 
       if (!currentProducts || currentProducts.length === 0) {
-        bot.answerCallbackQuery(query.id, {
+        await bot.answerCallbackQuery(query.id, {
           text: '📭 В этой категории пока нет товаров',
           show_alert: true
         });
@@ -849,8 +853,10 @@ bot.on('callback_query', (query) => {
         }));
         keyboard.push(row);
       }
+
+      keyboard.push([{ text: '🔙 Назад', callback_data: 'back-to-catalog' }])
   
-      bot.editMessageMedia({
+      await bot.editMessageMedia({
         type: 'photo',
         media: IMAGES.pack,
         caption: '🛒 Выберите пак:'
@@ -863,13 +869,30 @@ bot.on('callback_query', (query) => {
       })
       
       return;
+    } else if (data === 'back-to-catalog') {
+      await bot.editMessageMedia({
+        type: 'photo',
+        media: IMAGES.welcome,
+        caption: '🛒 Выберите категорию товаров:'
+      }, {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: {
+          inline_keyboard: [
+            [{text: 'UC', callback_data: 'open-catalog_uc'}],
+            [{text: 'Популярность', callback_data: 'open-catalog_popularity'}],
+            [{text: 'Подписки', callback_data: 'open-catalog_subs'}]
+          ]
+        }
+      });
+      return;
     } else if (data.startsWith('buy_')) {
       const [_, type, label] = data.split('_');
       const currentProducts = getCurrentProducts(type);
       const product = currentProducts.find(p => p.label === label);
           
       if (!product) {
-          bot.sendMessage(chatId, '⚠️ Товар временно недоступен.');
+          await bot.sendMessage(chatId, '⚠️ Товар временно недоступен.');
           return;
       }
       
@@ -877,7 +900,7 @@ bot.on('callback_query', (query) => {
           
       const numericPrice = Number(actualPrice);
       
-      bot.sendMessage(chatId, `Вы выбрали товар: ${label} за ${numericPrice}₽. Пожалуйста, введите ваш ID в PUBG:`, cancelMenu);
+      await bot.sendMessage(chatId, `Вы выбрали товар: ${label} за ${numericPrice}₽. Пожалуйста, введите ваш ID в PUBG:`, cancelMenu);
       
       awaitingPubgId[chatId] = { type, label, price: numericPrice };
       awaitingDeposit[chatId] = false;
@@ -905,7 +928,7 @@ bot.on('callback_query', (query) => {
         return chunks;
       };
   
-      bot.editMessageCaption(`🛠 Управление товарами (Категория: ${type}):`, {
+      await bot.editMessageCaption(`🛠 Управление товарами (Категория: ${type}):`, {
         chat_id: chatId,
         message_id: messageId,
         reply_markup: {inline_keyboard: productsManagementKeyboard(currentProducts)}
@@ -920,11 +943,11 @@ bot.on('callback_query', (query) => {
       const product = currentProducts.find(p => p.label === label);
   
       if (!product) {
-          bot.sendMessage(chatId, `Товар с меткой ${label} не найден.`);
+          await bot.sendMessage(chatId, `Товар с меткой ${label} не найден.`);
           return;
       }
   
-      bot.sendMessage(chatId, `Введите новую цену для товара ${label}:`);
+      await bot.sendMessage(chatId, `Введите новую цену для товара ${label}:`);
   
       awaitingToChangeProduct[chatId] = {type, product}
   
@@ -945,7 +968,7 @@ bot.on('callback_query', (query) => {
       }
       deleteProductsKeyboard.push([{text: '❌ Отмена', callback_data: 'admin-panel'}])
   
-      bot.editMessageCaption('Выберите товар, который хотите удалить:', {
+      await bot.editMessageCaption('Выберите товар, который хотите удалить:', {
         chat_id: chatId,
         message_id: messageId,
         reply_markup: {
@@ -960,7 +983,7 @@ bot.on('callback_query', (query) => {
       const type = data.split('_')[1];
       awaitingNewProductLabel[chatId] = {type};
   
-      bot.editMessageCaption('Введите название нового товара:', {
+      await bot.editMessageCaption('Введите название нового товара:', {
         chat_id: chatId,
         message_id: messageId,
         reply_markup: {inline_keyboard: [[{text: '❌ Отмена', callback_data: 'admin-panel'}]]}
@@ -976,7 +999,7 @@ bot.on('callback_query', (query) => {
   
       const product = currentProducts.find(p => p.label === labelToDelete);
       if (!product) {
-          bot.sendMessage(chatId, `Товар с меткой ${labelToDelete} не найден.`);
+          await bot.sendMessage(chatId, `Товар с меткой ${labelToDelete} не найден.`);
           return;
       }
   
@@ -985,15 +1008,15 @@ bot.on('callback_query', (query) => {
       if (index !== -1) {
         currentProducts.splice(index, 1);
         updateProducts(type, currentProducts)
-        .then(() => {
-            bot.sendMessage(chatId, `Товар ${labelToDelete}UC был удален.`, menu);
+        .then(async () => {
+            await bot.sendMessage(chatId, `Товар ${labelToDelete}UC был удален.`, menu);
         })
-        .catch((error) => {
-            bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.');
+        .catch(async (error) => {
+            await bot.sendMessage(chatId, 'Ошибка сохранения данных в Firebase.');
             console.error(error);
         });
       } else {
-        bot.sendMessage(chatId, `Товар ${labelToDelete}UC не найден.`);
+        await bot.sendMessage(chatId, `Товар ${labelToDelete}UC не найден.`);
       }
   
       return;
@@ -1007,16 +1030,16 @@ bot.on('callback_query', (query) => {
   
         sendMessageToAllAdmins(`Заказ для пользователя с ID ${userId} был выполнен.`);
     
-        bot.sendMessage(userId, leaveFeedbackText);
+        await bot.sendMessage(userId, leaveFeedbackText);
     
-        bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
+        await bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
           chat_id: message.chat.id,
           message_id: message.message_id,
         });
   
       return;
     } else if (data === 'deposit') {
-      bot.sendPhoto(chatId, IMAGES.amount, {
+      await bot.sendPhoto(chatId, IMAGES.amount, {
         caption: 'Введите сумму для пополнения',
         ...cancelMenu
       })
