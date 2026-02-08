@@ -14,14 +14,8 @@ const token = process.env.BOT_TOKEN;
 const bot = new TelegramApi(token, {polling: true});
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBNrUKNo2HU9D-ZWo9Dm5qpusUrCPvwAvA",
-  authDomain: "bojlhoy-shop.firebaseapp.com",
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://bojlhoy-shop-default-rtdb.firebaseio.com",
-  projectId: "bojlhoy-shop",
-  storageBucket: "bojlhoy-shop.firebasestorage.app",
-  messagingSenderId: "701243597046",
-  appId: "1:701243597046:web:94c5f9088200115baf4cd7"
+  databaseURL: "https://bolnoy-shop-uc1-default-rtdb.europe-west1.firebasedatabase.app",
 };
 
 admin.initializeApp(firebaseConfig);
