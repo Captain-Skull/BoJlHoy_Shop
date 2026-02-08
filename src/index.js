@@ -1,8 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
-const fs = require('fs');
-const path = require('path');
 
 app.use(express.json());
 
@@ -32,6 +30,13 @@ database.ref('admins').once('value').then((snapshot) => {
     database.ref('admins').set(admins);
   }
 });
+
+const IMAGES = {
+  welcome: 'https://ibb.co/PsHSN2VW',
+  pack: 'https://ibb.co/nsRFz3Xy',
+  amount: 'https://ibb.co/237dTmS1',
+  receipt: 'https://ibb.co/KjXnBn5d'
+}
 
 function isAdmin(chatId) {
   const id = chatId.toString();
@@ -199,13 +204,6 @@ const cancelMenu = {
   },
 };
 
-const getPhoto = (img) => {
-  const imagePath = path.join(__dirname, 'imgs', img);
-  const imageBuffer = fs.readFileSync(imagePath)
-
-  return imageBuffer;
-}
-
 function capitalizeFirstLetter(string) {
 return string.charAt(0).toUpperCase() + string.slice(1);
 }
@@ -243,7 +241,7 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
   const menu = isAdmin(chatId) ? adminMenu : mainMenu;
 
   if (userBalances[chatId] || userBalances[chatId] === 0) {
-    bot.sendPhoto(chatId, getPhoto('bolnoy.jpg'), {
+    bot.sendPhoto(chatId, IMAGES.welcome, {
       caption: 'Вы уже зарегистрированы. Что вы хотите сделать?',
       ...menu
     })
@@ -273,7 +271,7 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
         });
     }
   
-    bot.sendPhoto(chatId, getPhoto('bolnoy.jpg'), {
+    bot.sendPhoto(chatId, IMAGES.welcome, {
       caption: 'Добро пожаловать!. Что вы хотите сделать?',
       ...menu
     }).catch((error) => {
@@ -369,7 +367,7 @@ bot.on('message', (msg) => {
       return;
     }
 
-    bot.sendPhoto(chatId, getPhoto('send_receipt.jpg'), {
+    bot.sendPhoto(chatId, IMAGES.receipt, {
       caption: `Совершите перевод на указанную вами сумму ⤵️
 
 ${paymentDetails}
@@ -650,7 +648,7 @@ ${paymentDetails}
     
     return;
   } else if (text === 'Каталог 💰') {
-    bot.sendPhoto(chatId, getPhoto('bolnoy.jpg'), {
+    bot.sendPhoto(chatId, IMAGES.welcome, {
       caption: '🛒 Выберите категорию товаров: ',
       reply_markup: {
         inline_keyboard: [
@@ -683,7 +681,7 @@ ${paymentDetails}
   } else if (text === 'Управление товарами 🛠️') {
     if (!isAdmin(chatId)) return;
 
-    bot.sendPhoto(chatId, getPhoto('bolnoy.jpg'), {
+    bot.sendPhoto(chatId, IMAGES.welcome, {
       caption: 'Выберите категорию товаров для изменения:',
       reply_markup: {
         inline_keyboard: [
@@ -854,7 +852,7 @@ bot.on('callback_query', (query) => {
   
       bot.editMessageMedia({
         type: 'photo',
-        media: getPhoto('choose_pack.jpg'),
+        media: IMAGES.pack,
         caption: '🛒 Выберите пак:'
       }, {
         chat_id: chatId,
@@ -1018,7 +1016,7 @@ bot.on('callback_query', (query) => {
   
       return;
     } else if (data === 'deposit') {
-      bot.sendPhoto(chatId, getPhoto('send_amount.jpg'), {
+      bot.sendPhoto(chatId, IMAGES.amount, {
         caption: 'Введите сумму для пополнения',
         ...cancelMenu
       })
