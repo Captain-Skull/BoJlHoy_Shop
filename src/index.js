@@ -9,7 +9,24 @@ const admin = require('firebase-admin');
 require('firebase/database');
 const serviceAccount = require('../secrets/serviceAccountKey.json');
 const token = process.env.BOT_TOKEN;
-const bot = new TelegramApi(token, {polling: true});
+const PORT = process.env.PORT;
+const bot = new TelegramApi(token, {polling: false});
+
+app.post(`/bolnoy_shop`, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`Bot server running on port ${PORT}`);
+
+  const certPath = process.env.CERT_PATH;
+  bot.setWebHook(`https://45.11.92.151:8443/bolnoy_shop`, {
+    certificate: certPath
+  }).then(() => {
+    console.log('Webhook set successfully');
+  });
+});
 
 bot.on('polling_error', (error => {
   console.error('Polling error: ', error.code, error.message);
