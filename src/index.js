@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 
+const util = require('util');
+
 app.use(express.json());
 
 const TelegramApi = require('node-telegram-bot-api');
@@ -89,21 +91,75 @@ app.listen(PORT, '127.0.0.1', async () => {
   });
 });
 
-bot.on('polling_error', (error => {
-  console.error('Polling error: ', error.code, error.message);
-}))
+let pollingRestartAttempts = 0;
+const maxPollingRestarts = 6;
+
+bot.on('polling_error', async (error) => {
+  // Log deep error structure for triage without leaking secrets
+  try {
+    console.error('Polling error (detailed):', util.inspect(error, { depth: 6 }));
+  } catch (e) {
+    console.error('Polling error (summary):', error && (error.message || error));
+  }
+
+  // If EFATAL from underlying HTTP client, attempt a controlled restart with backoff
+  try {
+    if (error && error.code === 'EFATAL' && pollingRestartAttempts < maxPollingRestarts) {
+      pollingRestartAttempts += 1;
+      const delayMs = Math.min(60000, 1000 * Math.pow(2, pollingRestartAttempts));
+      console.warn(`EFATAL detected — scheduling polling restart #${pollingRestartAttempts} in ${delayMs}ms`);
+      try { await bot.stopPolling(); } catch (e) {}
+      setTimeout(async () => {
+        try {
+          await bot.startPolling();
+          console.info('Polling restarted (attempt)', pollingRestartAttempts);
+        } catch (err) {
+          console.error('Failed to restart polling:', util.inspect(err, { depth: 6 }));
+        }
+      }, delayMs);
+    }
+  } catch (e) {
+    console.error('Error handling polling_error:', util.inspect(e, { depth: 4 }));
+  }
+});
 
 bot.on('error', (error) => {
-  console.error('Bot error: ', error.code, error.message);
-})
+  try {
+    console.error('Bot error (detailed):', util.inspect(error, { depth: 6 }));
+  } catch (e) {
+    console.error('Bot error:', error && (error.message || error));
+  }
+});
 
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception: ', error); 
-})
+  try {
+    console.error('Uncaught exception (detailed):', util.inspect(error, { depth: 10 }));
+  } catch (e) {
+    console.error('Uncaught exception:', error && (error.stack || error));
+  }
+  // optional: consider graceful shutdown here
+});
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at: ', promise, 'reason: ', reason);
-})
+  try {
+    console.error('Unhandled rejection at promise:', util.inspect(promise, { depth: 2 }));
+    console.error('Unhandled rejection reason (detailed):', util.inspect(reason, { depth: 10 }));
+
+    // If RequestError from request-promise-core, try to extract wrapped errors
+    if (reason && reason.name === 'RequestError') {
+      console.error('RequestError details:', {
+        code: reason.code,
+        message: reason.message,
+        cause: reason.cause ? util.inspect(reason.cause, { depth: 6 }) : undefined,
+        error: reason.error ? util.inspect(reason.error, { depth: 6 }) : undefined,
+        options: reason.options ? util.inspect(reason.options, { depth: 4 }) : undefined,
+        response: reason.response ? ({ statusCode: reason.response.statusCode, body: reason.response.body }) : undefined,
+      });
+    }
+  } catch (e) {
+    console.error('Error logging unhandledRejection:', e && (e.message || e));
+  }
+});
 
 const firebaseConfig = {
   credential: admin.credential.cert(serviceAccount),
