@@ -38,32 +38,34 @@ app.listen(PORT, '127.0.0.1', async () => {
   }
 
   const fs = require('fs');
-  let certBuffer;
   try {
-    certBuffer = fs.readFileSync(certPath);
+    // verify cert exists
+    fs.accessSync(certPath, fs.constants.R_OK);
   } catch (err) {
-    console.error('Failed to read certificate at CERT_PATH:', certPath, err);
-    try { await bot.startPolling(); console.info('Bot started polling due to cert read failure.'); } catch (e) { console.error('Failed to start polling fallback:', e && (e.message || e)); }
+    console.error('Failed to access certificate at CERT_PATH:', certPath, err && (err.message || err));
+    try { await bot.startPolling(); console.info('Bot started polling due to cert access failure.'); } catch (e) { console.error('Failed to start polling fallback:', e && (e.message || e)); }
     return;
   }
 
-  // Helper: attempt to set webhook with simple retry/backoff
-  const setWebhookWithRetry = async (url, certificate, attempts = 3) => {
+  // Helper: attempt to set webhook with simple retry/backoff. Create a fresh stream each attempt.
+  const setWebhookWithRetry = async (url, certPathParam, attempts = 3) => {
     for (let i = 1; i <= attempts; i++) {
+      let certStream;
       try {
+        certStream = fs.createReadStream(certPathParam);
         // best-effort remove any existing webhook first
         await bot.deleteWebHook().catch(() => {});
-        await bot.setWebHook(url, { certificate });
+        await bot.setWebHook(url, { certificate: certStream });
         console.log('Webhook set successfully');
         return true;
       } catch (error) {
         console.error(`Attempt ${i} to set webhook failed:`, error && (error.message || error));
-        // Log EFATAL specifically for triage
         if (error && error.code === 'EFATAL') {
           console.warn('Underlying HTTP client reported EFATAL — inspect network/TLS or if the bot token was revoked.');
         }
+        // destroy stream to avoid resource leak
+        try { if (certStream && typeof certStream.destroy === 'function') certStream.destroy(); } catch (err) {}
         if (i < attempts) {
-          // exponential backoff
           await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
         } else {
           console.error('All webhook attempts failed.');
@@ -73,8 +75,8 @@ app.listen(PORT, '127.0.0.1', async () => {
     }
   };
 
-  // set the webhook (certificate passed as Buffer to avoid stream re-use issues)
-  setWebhookWithRetry(webhookUrl, certBuffer, 3).then(async (ok) => {
+  // set the webhook (stream passed freshly each attempt)
+  setWebhookWithRetry(webhookUrl, certPath, 3).then(async (ok) => {
     if (!ok) {
       console.warn('Webhook could not be set. Falling back to polling.');
       try {
