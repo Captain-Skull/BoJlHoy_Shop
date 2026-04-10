@@ -25,6 +25,13 @@ app.listen(PORT, '127.0.0.1', () => {
     certificate: certPath
   }).then(() => {
     console.log('Webhook set successfully');
+  }).catch((error) => {
+    // Handle request errors from underlying HTTP library (request/request-promise-core)
+    if (error && error.code === 'EFATAL' && error.response?.statusCode === 403) {
+      console.warn('Webhook failed: Bot was blocked or Telegram returned 403 (EFATAL).');
+    } else {
+      console.error('Failed to set webhook:', error);
+    }
   });
 });
 
