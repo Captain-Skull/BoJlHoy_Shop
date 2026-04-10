@@ -17,20 +17,72 @@ app.post(`/bolnoy_shop`, (req, res) => {
   res.sendStatus(200);
 });
 
-app.listen(PORT, '127.0.0.1', () => {
+app.listen(PORT, '127.0.0.1', async () => {
   console.log(`Bot server running on port ${PORT}`);
 
+  // If you prefer polling during development set USE_POLLING=true in env
+  if (process.env.USE_POLLING === 'true') {
+    console.info('USE_POLLING=true — running in polling mode.');
+    try { await bot.startPolling(); console.info('Bot started polling.'); } catch (e) { console.error('Failed to start polling:', e && (e.message || e)); }
+    return;
+  }
+
   const certPath = process.env.CERT_PATH;
-  bot.setWebHook(`https://45.11.92.151:8443/bolnoy_shop`, {
-    certificate: certPath
-  }).then(() => {
-    console.log('Webhook set successfully');
-  }).catch((error) => {
-    // Handle request errors from underlying HTTP library (request/request-promise-core)
-    if (error && error.code === 'EFATAL' && error.response?.statusCode === 403) {
-      console.warn('Webhook failed: Bot was blocked or Telegram returned 403 (EFATAL).');
-    } else {
-      console.error('Failed to set webhook:', error);
+  const webhookUrl = process.env.WEBHOOK_URL || 'https://45.11.92.151:8443/bolnoy_shop';
+
+  // If no certPath provided, fallback to polling
+  if (!certPath) {
+    console.warn('CERT_PATH not provided — skipping webhook setup. Falling back to polling.');
+    try { await bot.startPolling(); console.info('Bot started polling due to missing CERT_PATH.'); } catch (e) { console.error('Failed to start polling fallback:', e && (e.message || e)); }
+    return;
+  }
+
+  const fs = require('fs');
+  let certBuffer;
+  try {
+    certBuffer = fs.readFileSync(certPath);
+  } catch (err) {
+    console.error('Failed to read certificate at CERT_PATH:', certPath, err);
+    try { await bot.startPolling(); console.info('Bot started polling due to cert read failure.'); } catch (e) { console.error('Failed to start polling fallback:', e && (e.message || e)); }
+    return;
+  }
+
+  // Helper: attempt to set webhook with simple retry/backoff
+  const setWebhookWithRetry = async (url, certificate, attempts = 3) => {
+    for (let i = 1; i <= attempts; i++) {
+      try {
+        // best-effort remove any existing webhook first
+        await bot.deleteWebHook().catch(() => {});
+        await bot.setWebHook(url, { certificate });
+        console.log('Webhook set successfully');
+        return true;
+      } catch (error) {
+        console.error(`Attempt ${i} to set webhook failed:`, error && (error.message || error));
+        // Log EFATAL specifically for triage
+        if (error && error.code === 'EFATAL') {
+          console.warn('Underlying HTTP client reported EFATAL — inspect network/TLS or if the bot token was revoked.');
+        }
+        if (i < attempts) {
+          // exponential backoff
+          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+        } else {
+          console.error('All webhook attempts failed.');
+          return false;
+        }
+      }
+    }
+  };
+
+  // set the webhook (certificate passed as Buffer to avoid stream re-use issues)
+  setWebhookWithRetry(webhookUrl, certBuffer, 3).then(async (ok) => {
+    if (!ok) {
+      console.warn('Webhook could not be set. Falling back to polling.');
+      try {
+        await bot.startPolling();
+        console.info('Bot started polling as a fallback.');
+      } catch (err) {
+        console.error('Failed to start polling fallback:', err && (err.message || err));
+      }
     }
   });
 });
@@ -87,23 +139,29 @@ function isAdmin(chatId) {
 }
 
 async function sendMessageToAllAdmins(message, inlineKeyboard = null) {
-  Object.keys(admins).forEach(async adminId => {
+  const adminIds = Object.keys(admins || {});
+  for (const adminId of adminIds) {
     const options = {};
-
     if (inlineKeyboard) {
-      options.reply_markup = {
-        inline_keyboard: inlineKeyboard
-      };
+      options.reply_markup = { inline_keyboard: inlineKeyboard };
     }
-
-    await bot.sendMessage(adminId, message, options)
-  });
+    try {
+      await bot.sendMessage(adminId, message, options);
+    } catch (err) {
+      console.error(`Failed to send message to admin ${adminId}:`, err && (err.message || err));
+    }
+  }
 }
 
-function forwardMessageToAllAdmins(chatId, messageId) {
-  Object.keys(admins).forEach(async adminId => {
-    await bot.forwardMessage(adminId, chatId, messageId)
-  });
+async function forwardMessageToAllAdmins(chatId, messageId) {
+  const adminIds = Object.keys(admins || {});
+  for (const adminId of adminIds) {
+    try {
+      await bot.forwardMessage(adminId, chatId, messageId);
+    } catch (err) {
+      console.error(`Failed to forward message to admin ${adminId}:`, err && (err.message || err));
+    }
+  }
 }
 
 let paymentDetails = '';
