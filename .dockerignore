@@ -1,0 +1,9 @@
+node_modules
+.git
+.claude
+.claude-flow
+.env
+secrets
+.DS_Store
+Dockerfile
+.dockerignore

@@ -19,13 +19,13 @@ app.post(`/bolnoy_shop`, (req, res) => {
   res.sendStatus(200);
 });
 
-app.listen(PORT, '127.0.0.1', async () => {
+app.listen(PORT, process.env.HOST || '127.0.0.1', async () => {
   console.log(`Bot server running on port ${PORT}`);
 
   // If you prefer polling during development set USE_POLLING=true in env
   if (process.env.USE_POLLING === 'true') {
     console.info('USE_POLLING=true — running in polling mode.');
-    try { await bot.startPolling(); console.info('Bot started polling.'); } catch (e) { console.error('Failed to start polling:', e && (e.message || e)); }
+    try { await bot.deleteWebHook(); await bot.startPolling(); console.info('Bot started polling.'); } catch (e) { console.error('Failed to start polling:', e && (e.message || e)); }
     return;
   }
 
