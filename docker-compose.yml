@@ -8,8 +8,6 @@ services:
     environment:
       # ~75% of mem_limit so Node runs GC before Docker OOM-kills it
       NODE_OPTIONS: --max-old-space-size=192
-    ports:
-      - "3001:3001"
     volumes:
       - ./secrets:/app/secrets:ro
       # Webhook mode only: mount the cert and set CERT_PATH=/certs/webhook_cert.pem in .env
